@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: indigo
 sdk: static
 pinned: false
-short_description: Train, explain and govern a mortgage default model in-browser
+short_description: Train, explain and govern a mortgage default model
 ---
 
 # Credit Risk Model Studio
