@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Credit Risk Copilot</title>
-  <meta name="description" content="Explore residential secured lending risk across Ontario on a map and ask questions in plain language. Synthetic demo data.">
+  <title>Credit Risk Model Studio</title>
+  <meta name="description" content="Train, explain and govern a residential secured lending default model in your browser. Synthetic data.">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23256abf'/%3E%3Cpath d='M6 22l6-7 5 4 9-11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
@@ -23,96 +23,52 @@
     <div class="brand">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--seq-500)"/><path d="M6 22l6-7 5 4 9-11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div>
-        <h1>Credit Risk Copilot</h1>
-        <p class="sub">Residential secured lending &middot; Ontario &middot; <strong>synthetic demo data</strong></p>
+        <h1>Credit Risk Model Studio</h1>
+        <p class="sub">Residential secured lending &middot; probability-of-default model &middot; <strong>synthetic data</strong></p>
       </div>
     </div>
     <div class="top-actions">
+      <span class="pill" id="ws-pill" role="status"><i class="dot"></i><span id="ws-text">Preparing workspace&hellip;</span></span>
       <div class="ai-wrap">
         <button type="button" class="pill" id="ai-pill" aria-expanded="false" aria-controls="ai-pop"><i class="dot"></i><span id="ai-text">Connect AI</span></button>
         <div class="pop" id="ai-pop" hidden>
           <h3>Connect a free AI model</h3>
-          <p class="note">Paste a Hugging Face token that can call Inference Providers (<a href="https://huggingface.co/settings/tokens/new?tokenType=fineGrained" target="_blank" rel="noopener">create one free</a>). It stays in this browser and is only sent to Hugging Face.</p>
+          <p class="note">Powers the executive memo and the model Q&amp;A. Paste a Hugging Face token that can call Inference Providers (<a href="https://huggingface.co/settings/tokens/new?tokenType=fineGrained" target="_blank" rel="noopener">create one free</a>). It stays in this browser and is only sent to Hugging Face.</p>
           <input type="password" id="ai-token" placeholder="hf_..." autocomplete="off" spellcheck="false" aria-label="Hugging Face token">
           <label class="rem"><input type="checkbox" id="ai-remember"> Remember on this device</label>
           <div class="pop-row"><button type="button" class="btn primary" id="ai-connect">Connect</button><button type="button" class="btn" id="ai-off">Disconnect</button></div>
           <p class="note" id="ai-msg" role="status"></p>
-          <p class="note">Without a token the app still works with its built-in rules engine.</p>
+          <p class="note">Without a token everything still works; the memo and answers use built-in templates.</p>
         </div>
       </div>
-      <button class="btn accent" id="tour-btn" type="button">&#9654; Guided demo</button>
       <button class="btn" id="theme-btn" type="button" aria-pressed="false">Dark</button>
     </div>
   </header>
 
-  <main class="layout" id="main">
-    <section class="col-left">
-      <div class="card map-card">
-        <div class="card-head">
-          <h2 id="map-h">Where is the risk?</h2>
-          <div class="seg" role="group" aria-label="Zoom">
-            <button type="button" class="seg-btn on" data-zoom="south">Southern Ontario</button>
-            <button type="button" class="seg-btn" data-zoom="all">Full province</button>
-          </div>
-        </div>
-        <div class="chips" id="metric-chips" role="group" aria-label="Map metric"></div>
-        <div class="scenario-bar" id="scenario-bar" hidden>
-          <span class="s-ico" aria-hidden="true">&#9889;</span>
-          <span id="scenario-text"></span>
-          <button type="button" class="link" id="scenario-reset">Reset</button>
-        </div>
-        <div class="map-wrap">
-          <div id="map" class="map"></div>
-          <div class="sel-card" id="map-sel" hidden></div>
-          <div class="tip" id="tip" role="tooltip" hidden></div>
-        </div>
-        <div class="legend" id="legend" aria-hidden="true">
-          <span id="lg-lo"></span><span class="ramp"></span><span id="lg-hi"></span>
-        </div>
-        <details class="tbl-wrap">
-          <summary>View all regions as a table</summary>
-          <div class="tbl-scroll"><table class="tbl" id="tbl"></table></div>
-        </details>
-      </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Workflow">
+    <button role="tab" class="tab on" data-tab="data" aria-selected="true"><i>1</i>Data</button>
+    <button role="tab" class="tab" data-tab="train" aria-selected="false"><i>2</i>Train</button>
+    <button role="tab" class="tab" data-tab="eval" aria-selected="false"><i>3</i>Evaluate</button>
+    <button role="tab" class="tab" data-tab="explain" aria-selected="false"><i>4</i>Explain</button>
+    <button role="tab" class="tab" data-tab="decide" aria-selected="false"><i>5</i>Decide</button>
+    <button role="tab" class="tab" data-tab="govern" aria-selected="false"><i>6</i>Govern</button>
+    <button role="tab" class="tab" data-tab="copilot" aria-selected="false"><i>7</i>Copilot</button>
+  </nav>
 
-      <div class="card lab-card">
-        <div class="card-head">
-          <h2>What-if lab</h2>
-          <div class="seg">
-            <button type="button" class="seg-btn" id="preset-severe">Severe but plausible</button>
-            <button type="button" class="seg-btn" id="preset-reset">Reset</button>
-          </div>
-        </div>
-        <div class="sliders">
-          <label class="sl"><span>Interest rates <b id="v-rate">0 bps</b></span><input id="s-rate" type="range" min="-100" max="300" step="25" value="0"></label>
-          <label class="sl"><span>Unemployment <b id="v-unemp">0 pts</b></span><input id="s-unemp" type="range" min="-1" max="5" step="0.5" value="0"></label>
-          <label class="sl"><span>House prices <b id="v-hpi">0%</b></span><input id="s-hpi" type="range" min="-30" max="10" step="1" value="0"></label>
-        </div>
-        <p class="note">Illustrative elasticities, not calibrated to any real portfolio. The map above recolors instantly.</p>
-      </div>
-
-      <div class="card detail-card" id="detail" hidden></div>
-    </section>
-
-    <section class="col-right">
-      <div class="card chat-card">
-        <div class="card-head">
-          <h2>Ask the portfolio</h2>
-          <span class="ctx" id="ctx" hidden></span>
-        </div>
-        <div class="msgs" id="msgs" aria-live="polite"></div>
-        <div class="suggest" id="suggest"></div>
-        <form class="ask" id="ask" autocomplete="off">
-          <input id="q" type="text" placeholder="e.g. Which areas have the worst credit risk?" aria-label="Ask a question" maxlength="240">
-          <button class="btn primary" type="submit" id="send">Ask</button>
-        </form>
-        <p class="note foot" id="foot">The AI only interprets your question. Every number is computed from the data, never generated.</p>
-      </div>
-    </section>
+  <main class="page">
+    <section id="tab-data" class="panel" role="tabpanel"></section>
+    <section id="tab-train" class="panel" role="tabpanel" hidden></section>
+    <section id="tab-eval" class="panel" role="tabpanel" hidden></section>
+    <section id="tab-explain" class="panel" role="tabpanel" hidden></section>
+    <section id="tab-decide" class="panel" role="tabpanel" hidden></section>
+    <section id="tab-govern" class="panel" role="tabpanel" hidden></section>
+    <section id="tab-copilot" class="panel" role="tabpanel" hidden></section>
   </main>
 
+  <div class="busy" id="busy" hidden><div class="busy-card"><p id="busy-msg">Working&hellip;</p><div class="meter"><span id="busy-bar"></span></div></div></div>
+
   <footer class="bottom">
-    <p>Demo with <strong>synthetic data</strong>; not any institution's portfolio, policy or model. Region shapes: Ontario public health unit boundaries (Open Government Licence &ndash; Ontario), used as a stand-in for credit regions.</p>
+    <p>Demonstration on <strong>synthetic data</strong>. Not any institution's portfolio, policy or model. All models are trained in your browser; nothing is uploaded.</p>
   </footer>
 
   <script src="vendor/chart.umd.js"></script>
