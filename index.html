@@ -35,6 +35,8 @@
           <h3>Connect a free AI model</h3>
           <p class="note">Powers the executive memo and the model Q&amp;A. Paste a Hugging Face token that can call Inference Providers (<a href="https://huggingface.co/settings/tokens/new?tokenType=fineGrained" target="_blank" rel="noopener">create one free</a>). It stays in this browser and is only sent to Hugging Face.</p>
           <input type="password" id="ai-token" placeholder="hf_..." autocomplete="off" spellcheck="false" aria-label="Hugging Face token">
+          <label class="field" style="gap:4px"><span>Language model</span><select id="ai-model" aria-label="Language model"></select></label>
+          <input type="text" id="ai-custom" placeholder="org/model-name" autocomplete="off" spellcheck="false" aria-label="Custom model id" hidden>
           <label class="rem"><input type="checkbox" id="ai-remember"> Remember on this device</label>
           <div class="pop-row"><button type="button" class="btn primary" id="ai-connect">Connect</button><button type="button" class="btn" id="ai-off">Disconnect</button></div>
           <p class="note" id="ai-msg" role="status"></p>

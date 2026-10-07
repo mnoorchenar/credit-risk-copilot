@@ -1,6 +1,6 @@
 import { $, $$, busy } from './common.js';
 import { createWorkspace, trainModel, DEFAULTS } from './pipeline.js';
-import { connect, disconnect, savedToken, llmLive, llmModel } from './llm.js';
+import { connect, disconnect, savedToken, savedModel, setModel, llmLive, llmModel, MODEL_OPTIONS } from './llm.js';
 import * as data from './ui-data.js';
 import * as train from './ui-train.js';
 import * as evaluate from './ui-eval.js';
@@ -25,23 +25,46 @@ function show(tab) {
 
 function invalidate(except) { for (const k of Object.keys(TABS)) if (k !== except) dirty.add(k); }
 
-function paintAi() {
+function refreshPill() {
   const live = llmLive();
   $('#ai-pill').classList.toggle('live', live);
   $('#ai-text').textContent = live ? `AI live · ${llmModel().split('/').pop()}` : 'Connect AI';
+}
+function paintAi() {
+  refreshPill();
+  document.dispatchEvent(new CustomEvent('ai-changed'));
+}
+
+const CUSTOM = '__custom__';
+function modelId() {
+  const sel = $('#ai-model').value;
+  return sel === CUSTOM ? $('#ai-custom').value.trim() : sel;
+}
+function fillModels() {
+  const sel = $('#ai-model');
+  const want = savedModel();
+  const known = MODEL_OPTIONS.some((m) => m.id === want);
+  sel.innerHTML = MODEL_OPTIONS.map((m) => `<option value="${m.id}">${m.label} · ${m.note}</option>`).join('') + `<option value="${CUSTOM}">Custom model id…</option>`;
+  sel.value = known ? want : want ? CUSTOM : MODEL_OPTIONS[0].id;
+  $('#ai-custom').hidden = sel.value !== CUSTOM;
+  if (sel.value === CUSTOM) $('#ai-custom').value = want;
 }
 
 function wireAi() {
   const pop = $('#ai-pop'); const pill = $('#ai-pill');
   const toggle = (open) => { pop.hidden = !open; pill.setAttribute('aria-expanded', String(open)); if (open) $('#ai-token').focus(); };
+  fillModels();
+  const switched = () => { if (llmLive() && modelId()) { setModel(modelId()); $('#ai-msg').textContent = `Switched to ${modelId().split('/').pop()}.`; paintAi(); } };
+  $('#ai-model').addEventListener('change', () => { $('#ai-custom').hidden = $('#ai-model').value !== CUSTOM; if ($('#ai-model').value !== CUSTOM) switched(); });
+  $('#ai-custom').addEventListener('change', switched);
   pill.addEventListener('click', () => toggle(pop.hidden));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggle(false); });
   document.addEventListener('click', (e) => { if (!pop.hidden && !e.target.closest('.ai-wrap')) toggle(false); });
   $('#ai-connect').addEventListener('click', async () => {
     const btn = $('#ai-connect'); btn.disabled = true; $('#ai-msg').textContent = 'Checking token…';
-    const r = await connect($('#ai-token').value, $('#ai-remember').checked);
+    const r = await connect($('#ai-token').value, $('#ai-remember').checked, modelId());
     btn.disabled = false;
-    $('#ai-msg').textContent = r.ok ? 'Connected. The memo and Q&A now use AI.' : r.reason;
+    $('#ai-msg').textContent = r.ok ? (r.usedFallback ? `Connected, but your chosen model did not answer, so ${r.model.split('/').pop()} is being used.` : 'Connected. The memo and Q&A now use AI.') : r.reason;
     if (r.ok) { $('#ai-token').value = ''; setTimeout(() => toggle(false), 800); dirty.add('copilot'); if (active === 'copilot') show('copilot'); }
     paintAi();
   });
@@ -65,6 +88,7 @@ function wire() {
     invalidate(); dirty.delete(active); TABS[active].render(S);
   });
   document.addEventListener('models-changed', () => invalidate('train'));
+  document.addEventListener('ai-changed', () => { refreshPill(); dirty.add('copilot'); if (active === 'copilot') { dirty.delete('copilot'); copilot.render(S); } });
   document.addEventListener('cutoffs-changed', () => { for (const k of ['explain', 'govern', 'copilot']) dirty.add(k); });
   document.addEventListener('training-state', (e) => {
     const pill = $('#ws-pill');
@@ -96,7 +120,7 @@ async function boot() {
   const saved = savedToken();
   const start = (location.hash || '#data').slice(1);
   show(TABS[start] ? start : 'data');
-  if (saved) { await connect(saved, true); paintAi(); dirty.add('copilot'); }
+  if (saved) { await connect(saved, true, savedModel()); paintAi(); dirty.add('copilot'); }
   window.__studio = { S, show };
 }
 boot();

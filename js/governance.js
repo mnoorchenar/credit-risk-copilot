@@ -61,8 +61,10 @@ export function buildFacts(S, which) {
   if (o) L.push(`${o.name} test AUC ${o.metrics.test.auc.toFixed(3)} versus ${mt.test.auc.toFixed(3)} for this model, a difference of ${Math.abs(o.metrics.test.auc - mt.test.auc).toFixed(3)}.`);
   const dec = e.deciles; L.push(`Riskiest decile has bad rate ${(dec[0].rate * 100).toFixed(1)}% (lift ${dec[0].lift.toFixed(1)}x) and captures ${(dec[0].cumCapture * 100).toFixed(0)}% of defaults; the safest decile has bad rate ${(dec[9].rate * 100).toFixed(2)}%.`);
   if (S.shap[which]) {
-    const sh = S.shap[which]; const imp = FEATURES.map((f, j) => { let s = 0; for (let i = 0; i < sh.n; i++) s += Math.abs(sh.values[i * F + j]); return { f, v: s / sh.n }; }).sort((a, b) => b.v - a.v).slice(0, 5);
-    L.push(`Top SHAP drivers: ${imp.map((x, i) => `${i + 1}. ${x.f.label} (${x.v.toFixed(3)})`).join('; ')}.`);
+    const sh = S.shap[which];
+    const corr = (j) => { let mx = 0; let ms = 0; for (let i = 0; i < sh.n; i++) { mx += sh.X[i * F + j]; ms += sh.values[i * F + j]; } mx /= sh.n; ms /= sh.n; let c = 0; for (let i = 0; i < sh.n; i++) c += (sh.X[i * F + j] - mx) * (sh.values[i * F + j] - ms); return c; };
+    const imp = FEATURES.map((f, j) => { let s = 0; for (let i = 0; i < sh.n; i++) s += Math.abs(sh.values[i * F + j]); return { f, v: s / sh.n, up: corr(j) >= 0 }; }).sort((a, b) => b.v - a.v).slice(0, 5);
+    L.push(`Top SHAP drivers of default risk, most important first: ${imp.map((x, i) => `${i + 1}. ${x.f.label} (importance ${x.v.toFixed(3)}; ${x.up ? 'higher values raise risk' : 'higher values lower risk'})`).join('; ')}.`);
   }
   const { c1, c2 } = S.cutoffs; const rows = bandTable(e.preds.test, S.te.y, S.ead, S.lgd, c1, c2);
   rows.forEach((r) => L.push(`${r.name} band (PD ${r.name === 'Auto-approve' ? `below ${(c1 * 100).toFixed(1)}%` : r.name === 'Manual review' ? `${(c1 * 100).toFixed(1)}% to ${(c2 * 100).toFixed(1)}%` : `above ${(c2 * 100).toFixed(1)}%`}): ${(r.share * 100).toFixed(1)}% of accounts, observed bad rate ${(r.badRate * 100).toFixed(2)}%.`));

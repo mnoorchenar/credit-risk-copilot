@@ -3,14 +3,34 @@
 // Every failure resolves to null so callers fall back to templates; nothing here throws.
 
 const ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
-export const MODELS = ['Qwen/Qwen3-4B-Instruct-2507', 'google/gemma-3-4b-it', 'meta-llama/Llama-3.1-8B-Instruct'];
+// Curated list: each was checked to answer through Hugging Face Inference Providers. Which ones work for you depends on the
+// providers enabled on your account, so a custom model id can be typed in as well.
+export const MODEL_OPTIONS = [
+  { id: 'Qwen/Qwen3-4B-Instruct-2507', label: 'Qwen3 4B Instruct', note: 'small, follows instructions well' },
+  { id: 'google/gemma-3-4b-it', label: 'Gemma 3 4B', note: 'small and fast' },
+  { id: 'meta-llama/Llama-3.1-8B-Instruct', label: 'Llama 3.1 8B', note: 'fast, solid all-rounder' },
+  { id: 'meta-llama/Llama-3.3-70B-Instruct', label: 'Llama 3.3 70B', note: 'larger, better writing' },
+  { id: 'Qwen/Qwen2.5-72B-Instruct', label: 'Qwen 2.5 72B', note: 'larger, strong reasoning' },
+  { id: 'Qwen/Qwen3-235B-A22B-Instruct-2507', label: 'Qwen3 235B (MoE)', note: 'largest, highest quality' },
+  { id: 'deepseek-ai/DeepSeek-V3', label: 'DeepSeek V3', note: 'large, strong writing' },
+];
+export const MODELS = MODEL_OPTIONS.map((m) => m.id);
 const KEY = 'crc-hf-token';
+const MODEL_KEY = 'crc-hf-model';
 
 let session = null; // { token, model }
 
 export const llmLive = () => session !== null;
 export const llmModel = () => (session ? session.model : '');
 export const disconnect = () => { session = null; try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } };
+export const savedModel = () => { try { return localStorage.getItem(MODEL_KEY) || ''; } catch (e) { return ''; } };
+export function setModel(id) {
+  const m = String(id || '').trim();
+  if (!m || !session) return false;
+  session.model = m; session.preferred = m;
+  try { localStorage.setItem(MODEL_KEY, m); } catch (e) { /* ignore */ }
+  return true;
+}
 export const savedToken = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
 
 async function call(token, model, messages, maxTokens, timeoutMs, temperature = 0.2) {
@@ -37,7 +57,8 @@ async function call(token, model, messages, maxTokens, timeoutMs, temperature = 
 
 async function complete(messages, maxTokens, timeoutMs = 30000, temperature = 0.2) {
   if (!session) return null;
-  const order = [session.model, ...MODELS.filter((m) => m !== session.model)];
+  const first = session.preferred || session.model;
+  const order = [first, ...MODELS.filter((m) => m !== first)];
   for (const m of order) {
     const r = await call(session.token, m, messages, maxTokens, timeoutMs, temperature);
     if (r.ok) { session.model = m; return r.text; }
@@ -47,16 +68,18 @@ async function complete(messages, maxTokens, timeoutMs = 30000, temperature = 0.
 }
 
 /** Validate a token with a tiny request. Returns {ok, reason}. */
-export async function connect(token, remember = false) {
-  const t = String(token || '').trim();
-  if (t.length < 10) return { ok: false, reason: 'Please paste a Hugging Face token.' };
+export async function connect(token, remember = false, model = '') {
+  const tk = String(token || '').trim();
+  if (tk.length < 10) return { ok: false, reason: 'Please paste a Hugging Face token.' };
+  const want = String(model || savedModel() || MODELS[0]).trim();
+  const tryList = [want, ...MODELS.filter((m) => m !== want)];
   let last = { status: 0 };
-  for (const m of MODELS) {
-    const r = await call(t, m, [{ role: 'user', content: 'Reply with the word OK.' }], 40, 25000);
+  for (const m of tryList) {
+    const r = await call(tk, m, [{ role: 'user', content: 'Reply with the word OK.' }], 40, 25000);
     if (r.ok) {
-      session = { token: t, model: m };
-      try { if (remember) localStorage.setItem(KEY, t); else localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
-      return { ok: true, reason: '' };
+      session = { token: tk, model: m, preferred: want };
+      try { if (remember) localStorage.setItem(KEY, tk); else localStorage.removeItem(KEY); localStorage.setItem(MODEL_KEY, want); } catch (e) { /* ignore */ }
+      return { ok: true, reason: '', usedFallback: m !== want, model: m };
     }
     last = r;
     if (r.status === 401 || r.status === 403) break;
@@ -87,6 +110,7 @@ export function contradicts(text, ctx = {}) {
 
 const clean = (t) => t.replace(/\*\*/g, '').replace(/^#+\s*/gm, '').trim();
 const NL = '\n';
+export const SCOPE = 'I can only answer questions about this model\'s data, performance, explanations, decision cutoffs and validation results. Try: "Which features drive defaults?" or "Should we deploy this model?"';
 
 export async function writeMemo(facts, ctx = {}) {
   if (!session) return null;
@@ -110,7 +134,8 @@ export async function answer(question, facts, ctx = {}) {
   const system = [
     'You answer questions about one credit risk model for a business audience, using ONLY the facts below.',
     'Quote numbers exactly as written; never compute or invent numbers. If the facts do not contain the answer, say so briefly.',
-    'For deployment questions, repeat the "Governance verdict" and name the checks that have warnings. Never say all checks passed unless there are 0 warnings and 0 failures.',
+    'Scope: you can only discuss this model\'s data, performance, explanations, decision cutoffs, comparison with rules, validation and recommendation. For anything else (about yourself, general knowledge, other topics) reply exactly: "' + SCOPE + '"',
+    'Mention the "Governance verdict" and the checks with warnings ONLY when the question is about deployment, approval, risk or validation. Never say all checks passed unless there are 0 warnings and 0 failures.',
     'Answer in at most four sentences, plain text.', '', 'FACTS:', ...facts,
   ].join(NL);
   const sheet = facts.join(NL);
