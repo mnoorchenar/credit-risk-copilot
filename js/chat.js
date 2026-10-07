@@ -63,7 +63,7 @@ export async function ask(S, tab, question, getStates) {
   }
   if (!text) {
     if (!sources.length) { text = scopeMessage(tab); src = 'Outside this page'; }
-    else { text = `From this page: ${sources.join(' ')}`; src = llmLive() ? 'AI answer rejected (unverified numbers or an overstated claim); showing the matching facts' : 'AI not connected: showing the facts that match your question'; }
+    else { text = `From this page: ${sources.slice(0, 2).join(' ')}`; src = llmLive() ? 'AI answer rejected (unverified numbers or an overstated claim); showing the matching facts' : 'AI not connected: showing the facts that match your question'; }
   }
   const turn = { role: 'bot', text, src, sources };
   hist.push(turn);

@@ -27,6 +27,10 @@ Everything runs client-side: the data is generated, cleaned, modelled, explained
 | **6 Govern** | Nine automated validation checks (discrimination, overfitting, out-of-time, calibration, PSI, monotonicity, segment consistency, explainability, data integrity), population drift, macro stress tests and a downloadable model card. |
 | **7 Copilot** | An executive model-risk memo and Q&A. Optional AI (free Hugging Face Inference Providers) writes the text, but may only quote numbers from the computed fact sheet: anything else, or any claim that contradicts the validation results, is rejected and a template is used. |
 
+## A chat assistant on every page
+
+The chat bubble (bottom right) knows the page you are on. Each tab builds a **fact sheet from what is on screen** (selected feature, account, model, cutoffs, stress sliders, training results) plus a short glossary. Facts are ranked by relevance to your question and the answer is written only from them. It remembers the conversation per page for follow-ups, shows which facts it used, and has **Reset** (this page) and **Clear all pages**. The Copilot tab shares the same chat store. Out-of-scope questions get a clear scope message, and AI answers that quote unknown numbers or overstate the validation results are rejected.
+
 ## AI is optional
 
 Click **Connect AI** and paste a Hugging Face token that can call Inference Providers (a free fine-grained token is enough).

@@ -25,7 +25,7 @@ function paint() {
   if (!cfg) return;
   const el = $('#cw-msgs');
   $('#cw-title').textContent = `Ask about ${PAGES[tab]}`;
-  $('#cw-sub').textContent = llmLive() ? `AI · ${llmModel().split('/').pop()}` : 'Answers from this page\'s facts · connect AI for written answers';
+  $('#cw-sub').textContent = llmLive() ? `AI · ${llmModel().split('/').pop()}` : 'Fact-sheet mode · connect AI for written answers';
   const hist = getHistory(tab);
   if (!hist.length && !pending) {
     el.innerHTML = `<div class="m b">Hi! I can see what is on the <b>${esc(PAGES[tab])}</b> page right now, including your current selections, and I answer only from those numbers. Ask me anything about it.<small>Tip: change a slider or pick an account, then ask again.</small></div>`;
