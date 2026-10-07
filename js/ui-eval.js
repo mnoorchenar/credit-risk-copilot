@@ -91,3 +91,5 @@ function paintOp(S) {
     <div class="h">Approved</div><div class="good"><b>${tn.toLocaleString('en-CA')}</b>correctly approved</div><div class="badc"><b>${fn.toLocaleString('en-CA')}</b>missed defaults</div>
     <div class="h">Declined</div><div class="badc"><b>${fp.toLocaleString('en-CA')}</b>good customers declined</div><div class="good"><b>${tp.toLocaleString('en-CA')}</b>defaults avoided</div></div>`;
 }
+
+export const state = () => ({ view, cutoff });

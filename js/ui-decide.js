@@ -75,3 +75,5 @@ function paint(S) {
     <div class="callout ${sw.badsAvoided > 0 ? 'ok' : ''}" style="margin-top:12px">${sw.badsAvoided > 0 ? `Swapping in ${sw.cells.modelOnly[0]} accounts the rules decline (bad rate ${pct(sw.rates.modelOnly, 2)}) and swapping out ${sw.cells.policyOnly[0]} the rules approve (bad rate ${pct(sw.rates.policyOnly, 2)}) lowers the approved bad rate from ${pct(sw.policyBadRate, 2)} to ${pct(sw.modelBadRate, 2)} with <b>no change in volume</b>.` : 'At this approval rate the model does not improve on the current rules.'}</div></div></div>`;
   void esc;
 }
+
+export const state = () => ({ view });

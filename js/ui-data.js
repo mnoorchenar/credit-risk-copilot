@@ -61,3 +61,5 @@ function drawEda(S) {
     options: { scales: axes({ yTitle: 'Default rate %', xTitle: f.label, y: { beginAtZero: true } }), plugins: { tooltip: { callbacks: { label: (x) => `${x.dataset.label}: ${x.parsed.y?.toFixed(2)}%` } } } },
   });
 }
+
+export const state = () => ({ feature: current });

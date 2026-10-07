@@ -129,18 +129,22 @@ export async function writeMemo(facts, ctx = {}) {
   return null;
 }
 
-export async function answer(question, facts, ctx = {}) {
+export async function answer(question, facts, ctx = {}, opts = {}) {
   if (!session) return null;
+  const page = opts.page || 'this page';
+  const scope = opts.scope || SCOPE;
   const system = [
-    'You answer questions about one credit risk model for a business audience, using ONLY the facts below.',
-    'Quote numbers exactly as written; never compute or invent numbers. If the facts do not contain the answer, say so briefly.',
-    'Scope: you can only discuss this model\'s data, performance, explanations, decision cutoffs, comparison with rules, validation and recommendation. For anything else (about yourself, general knowledge, other topics) reply exactly: "' + SCOPE + '"',
+    `You are the assistant on the "${page}" page of a credit risk model studio, answering for a business audience using ONLY the facts below. The facts are ordered with the most relevant to the question first.`,
+    'Quote numbers exactly as written; never compute, round or invent numbers. If the facts do not contain the answer, say so briefly.',
+    'Scope: you can only discuss this model, its data, training, performance, explanations, decisions and validation as covered by the facts. For anything else (about yourself, general knowledge, other topics) reply exactly: "' + scope + '"',
     'Mention the "Governance verdict" and the checks with warnings ONLY when the question is about deployment, approval, risk or validation. Never say all checks passed unless there are 0 warnings and 0 failures.',
-    'Answer in at most four sentences, plain text.', '', 'FACTS:', ...facts,
+    'Answer in at most four sentences, plain text. Use earlier messages only to resolve follow-up questions.',
+    '', 'FACTS:', ...facts,
   ].join(NL);
   const sheet = facts.join(NL);
+  const turns = (opts.history || []).filter((m) => m.text).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: String(m.text).slice(0, 600) }));
   for (const temperature of [0, 0.3]) {
-    const text = await complete([{ role: 'system', content: system }, { role: 'user', content: String(question).slice(0, 300) }], 300, 30000, temperature);
+    const text = await complete([{ role: 'system', content: system }, ...turns, { role: 'user', content: String(question).slice(0, 300) }], 320, 30000, temperature);
     if (!text) return null;
     const c = clean(text);
     if (numbersGrounded(c, sheet) && !contradicts(c, ctx)) return c;

@@ -37,7 +37,7 @@ Without a token every feature still works; only the memo and answers fall back t
 
 ```bash
 python -m http.server 7860          # then open http://localhost:7860
-node --test tests/ml.test.mjs tests/governance.test.mjs
+node --test tests/ml.test.mjs tests/governance.test.mjs tests/chat.test.mjs
 ```
 
 The tests cover metrics, training, TreeSHAP additivity and equality with brute-force Shapley values, decision bands, swap-set maths, recourse, stress tests and the AI guardrails.

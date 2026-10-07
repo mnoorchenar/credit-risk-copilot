@@ -68,3 +68,5 @@ function paintStress(S) {
   });
   void FEATURES;
 }
+
+export const state = () => ({ view, shock: { ...shock } });

@@ -8,6 +8,7 @@ import * as explain from './ui-explain.js';
 import * as decide from './ui-decide.js';
 import * as govern from './ui-govern.js';
 import * as copilot from './ui-copilot.js';
+import * as widget from './widget.js';
 
 const TABS = { data, train, eval: evaluate, explain, decide, govern, copilot };
 let S = null;
@@ -21,6 +22,7 @@ function show(tab) {
   if (S && dirty.has(tab)) { dirty.delete(tab); TABS[tab].render(S); }
   try { history.replaceState(null, '', `#${tab}`); } catch (e) { /* ignore */ }
   window.scrollTo({ top: 0 });
+  widget.setTab(tab);
 }
 
 function invalidate(except) { for (const k of Object.keys(TABS)) if (k !== except) dirty.add(k); }
@@ -121,6 +123,10 @@ async function boot() {
   const start = (location.hash || '#data').slice(1);
   show(TABS[start] ? start : 'data');
   if (saved) { await connect(saved, true, savedModel()); paintAi(); dirty.add('copilot'); }
+  const getStates = () => ({ data: data.state(), train: train.state(), eval: evaluate.state(), explain: explain.state(), decide: decide.state(), govern: govern.state(), copilot: copilot.state() });
+  window.__getStates = getStates;
+  widget.init({ getS: () => S, getStates, getTab: () => active });
+  widget.setTab(active);
   window.__studio = { S, show };
 }
 boot();

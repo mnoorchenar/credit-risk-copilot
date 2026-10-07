@@ -1,6 +1,8 @@
 import { buildFacts, templateMemo, computeGovernance } from './governance.js';
 import { shapSample } from './pipeline.js';
-import { writeMemo, answer, llmLive, llmModel, setModel, MODEL_OPTIONS, SCOPE } from './llm.js';
+import { writeMemo, llmLive, llmModel, setModel, MODEL_OPTIONS } from './llm.js';
+import { ask as askChat, resetChat, hasHistory } from './chat.js';
+import { renderMessages } from './widget.js';
 import { $, esc, destroyCharts, badge } from './common.js';
 
 let view = 'challenger';
@@ -33,10 +35,12 @@ export async function render(S) {
       <div class="card"><div class="card-head"><div><h2>Ask about the model</h2><p class="lead">${llmLive() ? `Answered by ${esc(llmModel())} from the fact sheet.` : 'AI is not connected, so answers are pulled directly from the fact sheet. Connect AI (top right) for written answers.'}</p></div></div>
         <div class="chips" id="sg">${SUGGEST.map((s) => `<button class="chip">${esc(s)}</button>`).join('')}</div>
         <div class="msgs" id="qa" style="margin-top:10px"></div>
-        <form class="ask" id="ask"><input type="text" id="q" placeholder="e.g. Why is the challenger better?" maxlength="200" aria-label="Question about the model"><button class="btn primary" type="submit">Ask</button></form></div>
+        <form class="ask" id="ask"><input type="text" id="q" placeholder="e.g. Why is the challenger better?" maxlength="200" aria-label="Question about the model"><button class="btn primary" type="submit">Ask</button><button class="btn" type="button" id="qa-reset" title="Clear this conversation">↻ Reset</button></form></div>
       <div class="card"><div class="card-head"><div><h2>Fact sheet</h2><p class="lead">The only material the AI may quote.</p></div></div><div class="scroll" style="max-height:420px"><ul class="list" style="padding:8px 10px">${facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div></div>
     </div>`;
   paintMemo();
+  renderMessages($('#qa'), 'copilot');
+  $('#qa-reset').disabled = !hasHistory('copilot');
   $('#cp-seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; view = b.dataset.v; render(S); });
   const cpm = $('#cp-model'); if (cpm) cpm.addEventListener('change', () => { setModel(cpm.value); document.dispatchEvent(new CustomEvent('ai-changed')); });
   $('#gen').addEventListener('click', async () => {
@@ -48,8 +52,9 @@ export async function render(S) {
     paintMemo(); btn.disabled = false; btn.textContent = 'Write with AI';
   });
   $('#copy').addEventListener('click', () => { try { navigator.clipboard.writeText(memo.text); $('#copy').textContent = 'Copied'; setTimeout(() => { $('#copy').textContent = 'Copy'; }, 1500); } catch (e) { /* ignore */ } });
-  $('#sg').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) ask(S, facts, b.textContent, ctx); });
-  $('#ask').addEventListener('submit', (e) => { e.preventDefault(); const v = $('#q').value; $('#q').value = ''; ask(S, facts, v, ctx); });
+  $('#sg').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) ask(S, b.textContent); });
+  $('#ask').addEventListener('submit', (e) => { e.preventDefault(); const v = $('#q').value; $('#q').value = ''; ask(S, v); });
+  $('#qa-reset').addEventListener('click', () => { resetChat('copilot'); renderMessages($('#qa'), 'copilot'); $('#qa-reset').disabled = true; });
 }
 
 function paintMemo() {
@@ -64,27 +69,15 @@ function modelSelect() {
   return `<select id="cp-model" aria-label="Language model" title="Language model">${extra}${MODEL_OPTIONS.map((m) => `<option value="${m.id}" ${m.id === cur ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}</select>`;
 }
 
-const STOP = new Set(['the', 'a', 'an', 'is', 'are', 'of', 'to', 'we', 'it', 'this', 'that', 'how', 'what', 'which', 'does', 'do', 'and', 'for', 'in', 'on', 'than', 'with', 'should', 'much', 'be']);
-function retrieve(question, facts) {
-  const words = question.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
-  const syn = { deploy: ['governance', 'recommend', 'checks'], drive: ['shap', 'drivers'], features: ['shap', 'drivers'], compare: ['versus', 'difference'], risk: ['governance', 'psi', 'drift'], risks: ['governance', 'drift', 'psi'], rules: ['rule', 'policy'], better: ['versus', 'rule'], accurate: ['auc', 'gini'], performance: ['auc', 'ks'], stable: ['psi', 'drift'], calibrated: ['calibration'] };
-  const terms = new Set(words.flatMap((w) => [w, ...(syn[w] || [])]));
-  const scored = facts.map((f, i) => ({ f, i, s: [...terms].reduce((a, t) => a + (f.toLowerCase().includes(t) ? 1 : 0), 0) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i).slice(0, 3);
-  return scored.map((x) => x.f);
+async function ask(S, q) {
+  const question = String(q || '').trim(); if (!question) return;
+  const box = $('#qa'); const btn = $('#qa-reset');
+  btn.disabled = true;
+  box.insertAdjacentHTML('beforeend', `<div class="m u">${esc(question)}</div><div class="m b"><span class="think"><i></i><i></i><i></i></span></div>`);
+  box.scrollTop = box.scrollHeight;
+  await askChat(S, 'copilot', question, () => window.__getStates());
+  renderMessages(box, 'copilot');
+  btn.disabled = false;
 }
 
-async function ask(S, facts, q, ctx) {
-  const question = String(q || '').trim(); if (!question) return;
-  const box = $('#qa');
-  const u = document.createElement('div'); u.className = 'm u'; u.textContent = question; box.appendChild(u);
-  const b = document.createElement('div'); b.className = 'm b'; b.textContent = 'Thinking…'; box.appendChild(b); box.scrollTop = box.scrollHeight;
-  let text = null; let src = '';
-  if (llmLive()) { text = await answer(question, facts, ctx); src = text ? `AI · ${llmModel()} · numbers verified` : ''; }
-  if (!text) {
-    const hits = retrieve(question, facts);
-    if (!hits.length) { text = SCOPE; src = 'Outside what this app can answer'; }
-    else { text = `From the model report: ${hits.join(' ')}`; src = llmLive() ? 'AI answer rejected (unverified numbers or an overstated claim); showing source facts' : 'Pulled from the fact sheet (AI not connected)'; }
-  }
-  b.innerHTML = `${esc(text)}<small>${esc(src)}</small>`;
-  box.scrollTop = box.scrollHeight;
-}
+export const state = () => ({ view });

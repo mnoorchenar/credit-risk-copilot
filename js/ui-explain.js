@@ -202,3 +202,5 @@ function paintLocal(S) {
   });
   void logit; void predictProba;
 }
+
+export const state = () => ({ view, feat, acct, perm: permCache[view] ? permCache[view].r : null });

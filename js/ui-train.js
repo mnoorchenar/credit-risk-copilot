@@ -170,3 +170,5 @@ function paintCompare(S) {
     ${row('Train – validation AUC gap', (e) => num(e.metrics.train.auc - e.metrics.val.auc), 'low')}<tr><td class="l">Training time</td><td>${(a.trainMs / 1000).toFixed(1)}s</td><td>${(b.trainMs / 1000).toFixed(1)}s</td></tr>
     </tbody></table></div><div class="callout info" style="margin-top:12px">${esc(verdict)}</div>`;
 }
+
+export const state = () => ({ view, training, params: { champion: { ...params.champion }, challenger: { ...params.challenger } } });
